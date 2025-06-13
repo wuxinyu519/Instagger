@@ -17,20 +17,15 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 
-CANDIDATE_MODELS = [
-    "WizardLM/WizardLM-13B-V1.2",
-    "claude-instant-v1",
-    "claude-v1", 
-    "claude-v2",
-    "gpt-3.5-turbo-1106",
-    "gpt-4-1106-preview",
-    "meta/code-llama-instruct-34b-chat",
-    "meta/llama-2-70b-chat",
-    "mistralai/mistral-7b-chat",
-    "mistralai/mixtral-8x7b-chat",
-    "no_model_correct",
-    "zero-one-ai/Yi-34B-Chat"
-]
+
+train_data = load_dataset('data/train_samples.pkl')
+val_data = load_dataset('data/val_samples.pkl') if os.path.exists('data/val_samples.pkl') else []
+
+# 合并训练集和验证集
+all_data = train_data + val_data
+CANDIDATE_MODELS = sorted(list(set(ex['oracle_model_to_route_to'] for ex in all_data)))
+print(f"CANDIDATE_MODELS ({len(CANDIDATE_MODELS)}): {CANDIDATE_MODELS}")
+
 
 #check labels
 from collections import Counter
@@ -54,7 +49,7 @@ def parse_args():
     parser.add_argument('--output_dir', default='./outputs/router_selector_1b_lr/')
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--epochs', type=int, default=3)
-    parser.add_argument('--lr', type=float, default=2e-4)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--max_len', type=int, default=2048)
     parser.add_argument('--use_validation', action='store_true', help='Use validation set during training')
     return parser.parse_args()
@@ -88,15 +83,24 @@ def main():
         
         candidates_str = "\n".join([f"- {model}" for model in CANDIDATE_MODELS])
         
-        full_prompt = f"""Request: {example['prompt']}
+        full_prompt = f"""You are an AI model selector.
 
-                Task: {example['eval_name']}
-                Tags: {', '.join(example['tags'])}
+            Given the following request, task type, and tags, choose the **most suitable** model from the list of available candidates.
 
-                Available models:
-                {candidates_str}
+            Request:
+            {example['prompt']}
 
-                Select the best model:"""
+            Task:
+            {example['eval_name']}
+
+            Tags:
+            {', '.join(example['tags'])}
+
+            Available Models:
+            {candidates_str}
+
+            Your answer should be the **name of the most appropriate model** from the above list."""
+
         
         target = example['oracle_model_to_route_to']
         
