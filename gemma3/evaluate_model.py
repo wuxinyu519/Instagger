@@ -85,10 +85,6 @@ def merge_lora_model():
         
     except Exception as e:
         print(f"Error during model merging: {e}")
-        print("Please check:")
-        print("1. LoRA checkpoint path is correct")
-        print("2. Base model can be loaded")
-        print("3. Sufficient disk space available")
         raise
 
 def evaluate_dataset(llm, tokenizer, sampling_params, data, dataset_name):
