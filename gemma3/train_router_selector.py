@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument('--model_name', default='google/gemma-3-1b-it')
     parser.add_argument('--train_data_path', default='data/train_samples.pkl')
     parser.add_argument('--val_data_path', default='data/val_samples.pkl')
-    parser.add_argument('--output_dir', default='./outputs/router_selector_1b_lr/')
+    parser.add_argument('--output_dir', default='./outputs/router_selector_1b/')
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--epochs', type=int, default=3)
     parser.add_argument('--lr', type=float, default=1e-4)
