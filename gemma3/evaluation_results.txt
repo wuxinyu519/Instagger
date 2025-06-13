@@ -1,0 +1,85 @@
+EVALUATION RESULTS SUMMARY
+================================================================================
+
+TRAIN SET RESULTS:
+Total samples: 29242
+Correct predictions: 10898
+Accuracy: 37.27%
+Truncated samples: 0/29242 (0.0%)
+Average token length: 384.3
+
+VALIDATION SET RESULTS:
+Total samples: 7311
+Correct predictions: 2541
+Accuracy: 34.76%
+Truncated samples: 0/7311 (0.0%)
+Average token length: 383.7
+
+PREDICTION DISTRIBUTION COMPARISON:
+Model                          Train Count  Val Count  Train %  Val %   
+----------------------------------------------------------------------
+WizardLM/WizardLM-13B-V1.2     10301        2626       35.2   % 35.9   %
+WizardLM/WizardLM-13B-V1.2 WizardLM is a large language 1            0          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2 WizardLM-13B 1            0          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2 WizardLM/WizardLM- 2636         635        9.0    % 8.7    %
+WizardLM/WizardLM-13B-V1.2 mistralai/mistral 835          215        2.9    % 2.9    %
+WizardLM/WizardLM-13B-V1.2 mistralai/mixt 31           5          0.1    % 0.1    %
+WizardLM/WizardLM-13B-V1.2, claude-instant- 1            1          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2, gpt-3. 1            0          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2, mistralai/mi 1            2          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2, mistralai/mist 4            4          0.0    % 0.1    %
+WizardLM/WizardLM-13B-V1.2. WizardLM/WizardLM 0            1          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2. mistralai/mist 7            1          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2.\n WizardLM/Wizard 1            0          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2\n WizardLM/Wizard 43           14         0.1    % 0.2    %
+WizardLM/WizardLM-13B-V1.2\n mistralai/ 1            0          0.0    % 0.0    %
+WizardLM/WizardLM-13B-V1.2\n- WizardLM/ 5            0          0.0    % 0.0    %
+gpt-3.5-turbo-1106             3            0          0.0    % 0.0    %
+gpt-3.5-turbo-1106-preview     14           1          0.0    % 0.0    %
+mistralai/mistral-7b-chat      8595         2132       29.4   % 29.2   %
+mistralai/mistral-7b-chat WizardLM/WizardLM-13B 1139         303        3.9    % 4.1    %
+mistralai/mistral-7b-chat mistralai/mistral-7b 40           7          0.1    % 0.1    %
+mistralai/mistral-7b-chat mistralai/mixtral-8 15           6          0.1    % 0.1    %
+mistralai/mistral-7b-chat zero-one-ai/Yi-3 3            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat-chat 1            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat-mistral-7b-chat- 1            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat-v1.2 6            1          0.0    % 0.0    %
+mistralai/mistral-7b-chat-v2   1            1          0.0    % 0.0    %
+mistralai/mistral-7b-chat-zero-one-ai/Yi- 1            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat. mistralai/mixtral- 0            1          0.0    % 0.0    %
+mistralai/mistral-7b-chat\     1            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat\n WizardLM/WizardLM-1 28           7          0.1    % 0.1    %
+mistralai/mistral-7b-chat\n mistralai/mixtral 1            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat\n- mistralai/mistral 6            0          0.0    % 0.0    %
+mistralai/mistral-7b-chat\n- zero-one-ai/ 0            1          0.0    % 0.0    %
+mistralai/mistral-7b-chat\n\n WizardLM/WizardLM 1            0          0.0    % 0.0    %
+mistralai/mixtral-8x7b-chat    726          179        2.5    % 2.4    %
+mistralai/mixtral-8x7b-chat WizardLM/WizardLM- 36           5          0.1    % 0.1    %
+mistralai/mixtral-8x7b-chat mistralai/mistral 12           3          0.0    % 0.0    %
+mistralai/mixtral-8x7b-chat mistralai/mixt 0            1          0.0    % 0.0    %
+mistralai/mixtral-8x7b-chat\   1            0          0.0    % 0.0    %
+mistralai/mixtral-8x7b-chat\n WizardLM/Wizard 1            0          0.0    % 0.0    %
+mistralai/mixtral-8x7b-chat\n mistralai/ 1            0          0.0    % 0.0    %
+no_model_correct               235          67         0.8    % 0.9    %
+no_model_correct WizardLM/WizardLM-13B-V1.2 2            0          0.0    % 0.0    %
+no_model_correct WizardLM/WizardLM-13B-V1.2 mist 0            1          0.0    % 0.0    %
+zero-one-ai/Yi-34B-Chat        4300         1056       14.7   % 14.4   %
+zero-one-ai/Yi-34B-Chat WizardLM-13B- 1            1          0.0    % 0.0    %
+zero-one-ai/Yi-34B-Chat WizardLM/WizardLM-1 199          33         0.7    % 0.5    %
+zero-one-ai/Yi-34B-Chat\       1            0          0.0    % 0.0    %
+zero-one-ai/Yi-34B-Chat\n WizardLM/WizardLM 0            1          0.0    % 0.0    %
+zero-one-ai/Yi-34B-Chat\nzero-one-ai 2            0          0.0    % 0.0    %
+
+ TRAIN SET FAILED CASES (sample):
+  1. Expected: 'WizardLM/WizardLM-13B-V1.2' | Generated: 'mistralai/mistral-7b-chat'
+  2. Expected: 'zero-one-ai/Yi-34B-Chat' | Generated: 'mistralai/mistral-7b-chat'
+  3. Expected: 'claude-v1' | Generated: 'WizardLM/WizardLM-13B-V1.2'
+  4. Expected: 'mistralai/mistral-7b-chat' | Generated: 'WizardLM/WizardLM-13B-V1.2'
+  5. Expected: 'claude-instant-v1' | Generated: 'mistralai/mistral-7b-chat'
+
+ VALIDATION SET FAILED CASES (sample):
+  1. Expected: 'zero-one-ai/Yi-34B-Chat' | Generated: 'mistralai/mistral-7b-chat'
+  2. Expected: 'zero-one-ai/Yi-34B-Chat' | Generated: 'mistralai/mistral-7b-chat'
+  3. Expected: 'zero-one-ai/Yi-34B-Chat' | Generated: 'WizardLM/WizardLM-13B-V1.2'
+  4. Expected: 'mistralai/mistral-7b-chat' | Generated: 'WizardLM/WizardLM-13B-V1.2 mistralai/mistral'
+  5. Expected: 'no_model_correct' | Generated: 'mistralai/mistral-7b-chat'
