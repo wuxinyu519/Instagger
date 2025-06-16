@@ -14,25 +14,25 @@ from tqdm import tqdm
 from datetime import datetime
 
 # =============================================================================
-# 配置参数 - 可灵活修改
+# 配置参数
 # =============================================================================
 CONFIG = {
-    'model_name': 'google/gemma-3-1b-it',
+    'model_name': 'google/gemma-3-4b-it',
     'train_data_path': 'data/train_samples.pkl',
     'val_data_path': 'data/val_samples.pkl',
-    'output_dir': './outputs/gemma-3-1b-it/',
+    'output_dir': './outputs/gemma-3-4b-it/',
     'max_len': 2048,
-    'gpu_id': '0',
+    'gpu_id': '0,1',
     'batch_size': 32,
     'max_tokens': 20,
-    'temperature': 0.0,
+    'temperature': 0.7,
     'gpu_memory_utilization': 0.8,
-    'target_key': 'best_model',  # JSON中要提取的key
-    'oracle_field': 'oracle_model_to_route_to',  # 数据中的标准答案字段
+    'target_key': 'best_model',  
+    'oracle_field': 'oracle_model_to_route_to',  
 }
 
 def build_prompt(sample, candidate_models):
-    """构建推理prompt"""
+   
     candidates_str = ", ".join(sorted(candidate_models))
     eval_name = sample.get("eval_name", "N/A")
     user_prompt = sample.get("prompt", "")
@@ -72,13 +72,13 @@ def extract_prediction(generated_text):
     cleaned_output = cleaned_output.strip()
 
     try:
-        # 方法1: 直接匹配标准JSON格式 {"best_model": "model_name"}
+        
         json_pattern = r'\{\s*"best_model"\s*:\s*"([^"]+)"\s*\}'
         match = re.search(json_pattern, cleaned_output, re.IGNORECASE)
         if match:
             return match.group(1).strip()
 
-        # 方法2: 尝试解析完整的JSON对象
+   
         json_start = cleaned_output.find('{')
         json_end = cleaned_output.rfind('}') + 1
         if json_start != -1 and json_end > json_start:
@@ -90,7 +90,7 @@ def extract_prediction(generated_text):
             except json.JSONDecodeError:
                 pass
 
-        # 方法3: 更宽松的best_model字段匹配
+   
         patterns = [
             r'"best_model"\s*:\s*"([^"]*)"',
             r"'best_model'\s*:\s*'([^']*)'",
@@ -111,7 +111,7 @@ def extract_prediction(generated_text):
 
 
 def get_candidate_models(data_paths):
-    """从数据中提取候选模型"""
+  
     all_data = []
     for path in data_paths:
         if os.path.exists(path):
@@ -134,7 +134,6 @@ def cleanup_gpu_memory():
         torch.cuda.reset_peak_memory_stats()
         torch.cuda.synchronize()
     
-    # 清理分布式进程组（如果存在）
     try:
         if torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
@@ -150,12 +149,12 @@ def merge_lora_model(output_dir, model_name):
     print(f"Using checkpoint: {latest_checkpoint}")
 
     if os.path.exists(merged_path):
-        print(f"✅ Already merged: {merged_path}")
+        print(f"Already merged: {merged_path}")
         return merged_path, latest_checkpoint
 
-    print("🔄 Starting model merge process...")
+    print("Starting model merge process...")
     cleanup_gpu_memory()
-    print("💾 Saving tokenizer...")
+    print("Saving tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # 设置 pad_token，防止缺失导致 vocab size 不一致
@@ -163,7 +162,7 @@ def merge_lora_model(output_dir, model_name):
         tokenizer.pad_token = tokenizer.eos_token
 
     
-    print("📥 Loading base model...")
+    print("Loading base model...")
     base_model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float32,
@@ -171,83 +170,82 @@ def merge_lora_model(output_dir, model_name):
         trust_remote_code=True,
         attn_implementation="eager"
     )
-    # 调整 base_model 的 vocab size
+
     base_model.resize_token_embeddings(len(tokenizer))
-    print("🔧 Loading LoRA adapter...")
+    print("Loading LoRA adapter...")
     peft_model = PeftModel.from_pretrained(base_model, lora_path)
 
-    print("🔀 Merging weights...")
+    print("Merging weights...")
     merged_model = peft_model.merge_and_unload()
 
-    print("💾 Saving merged model...")
+    print("Saving merged model...")
     os.makedirs(merged_path, exist_ok=True)
     merged_model.save_pretrained(merged_path, safe_serialization=False, max_shard_size="5GB")
 
     
 
-    # 保存 tokenizer
+ 
     tokenizer.save_pretrained(merged_path)
 
-    # 清理资源
+ 
     del base_model, peft_model, merged_model, tokenizer
     cleanup_gpu_memory()
 
-    print(f"✅ Model merged to: {merged_path}")
+    print(f"Model merged to: {merged_path}")
     return merged_path, latest_checkpoint
 
 
 def initialize_vllm(model_path):
-    """初始化vLLM"""
-    # 设置环境变量避免多进程问题
+    
     os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
     
-    print("🚀 Initializing vLLM...")
+    print("Initializing vLLM...")
     cleanup_gpu_memory()
     
     try:
         llm = LLM(
             model=model_path,
             tensor_parallel_size=1,
-            gpu_memory_utilization=CONFIG['gpu_memory_utilization'],
+            # gpu_memory_utilization=CONFIG['gpu_memory_utilization'],
             max_model_len=CONFIG['max_len'],
-            dtype="float16",
+            dtype="float32",
             trust_remote_code=True,
-            enforce_eager=True,  # 禁用CUDA图形优化
+            enforce_eager=True,  
         )
-        print("✅ vLLM initialized successfully")
+        print("vLLM initialized successfully")
         return llm
         
     except Exception as e:
-        print(f"❌ vLLM initialization failed: {e}")
-        print("🔄 Retrying with reduced memory settings...")
+        print(f"vLLM initialization failed: {e}")
+        print("Retrying with reduced memory settings...")
         
         try:
             llm = LLM(
                 model=model_path,
                 tensor_parallel_size=1,
-                gpu_memory_utilization=0.6,  # 降低内存使用
+                # gpu_memory_utilization=0.6,  # 降低内存使用
                 max_model_len=min(CONFIG['max_len'], 1024),  # 降低最大长度
-                dtype="float16",
+                dtype="float32",
                 trust_remote_code=True,
                 enforce_eager=True,
             )
-            print("✅ vLLM initialized with reduced settings")
+            print("vLLM initialized with reduced settings")
             return llm
             
         except Exception as e2:
-            print(f"❌ vLLM initialization still failed: {e2}")
+            print(f"vLLM initialization still failed: {e2}")
             raise Exception("Failed to initialize vLLM after retries")
 
 
 def evaluate_dataset(llm, data, dataset_name, candidate_models):
     """使用vLLM评估数据集"""
-    print(f"\n📊 Evaluating {dataset_name}: {len(data)} samples")
+    print(f"\nEvaluating {dataset_name}: {len(data)} samples")
     
-    # 生成prompts
+ 
     prompts = [build_prompt(sample, candidate_models) for sample in data]
     expected = [sample[CONFIG['oracle_field']] for sample in data]
     
-    # 设置采样参数
+
     sampling_params = SamplingParams(
         max_tokens=CONFIG['max_tokens'], 
         temperature=CONFIG['temperature'],
@@ -256,7 +254,7 @@ def evaluate_dataset(llm, data, dataset_name, candidate_models):
     
     # 分批生成
     all_outputs = []
-    print("🔄 Generating responses...")
+    print("Generating responses...")
     
     for i in range(0, len(prompts), CONFIG['batch_size']):
         batch_prompts = prompts[i:i+CONFIG['batch_size']]
@@ -269,16 +267,16 @@ def evaluate_dataset(llm, data, dataset_name, candidate_models):
             all_outputs.extend(batch_outputs)
             
         except Exception as e:
-            print(f"❌ Batch {batch_num} failed: {e}")
-            # 创建虚拟输出
+            print(f"Batch {batch_num} failed: {e}")
+  
             for _ in batch_prompts:
                 class DummyOutput:
                     def __init__(self):
                         self.outputs = [type('obj', (object,), {'text': 'ERROR'})]
                 all_outputs.append(DummyOutput())
     
-    # 处理结果
-    print("🔍 Processing results...")
+   
+    print("Processing results...")
     correct = 0
     
     for idx, (output, true_answer, sample) in enumerate(tqdm(zip(all_outputs, expected, data), total=len(data), desc="Processing")):
@@ -289,12 +287,12 @@ def evaluate_dataset(llm, data, dataset_name, candidate_models):
             predicted = 'GENERATION_ERROR'
             generated_text = 'ERROR'
         
-        # 精确匹配预测结果和真实答案
+    
         is_correct = (predicted == true_answer)
         if is_correct:
             correct += 1
         
-        # 将预测结果写入数据
+        
         sample.update({
             "prediction": predicted,
             "is_correct": is_correct,
@@ -303,10 +301,10 @@ def evaluate_dataset(llm, data, dataset_name, candidate_models):
         })
     
     accuracy = correct / len(data) if len(data) > 0 else 0
-    print(f"✅ {dataset_name} Accuracy: {accuracy:.2%} ({correct}/{len(data)})")
+    print(f"{dataset_name} Accuracy: {accuracy:.2%} ({correct}/{len(data)})")
     
-    # 显示前几个样本的结果
-    print(f"\n📋 Sample Results from {dataset_name}:")
+
+    print(f"\nSample Results from {dataset_name}:")
     for i, sample in enumerate(data[:3]):
         print(f"Sample {i+1}:")
         print(f"  Expected: {sample.get(CONFIG['oracle_field'])}")
@@ -331,20 +329,20 @@ def main():
     parser.add_argument('--force_merge', action='store_true', help='Force re-merge LoRA model')
     args = parser.parse_args()
     
-    # 更新配置
+    
     CONFIG.update({k: v for k, v in vars(args).items() if k in CONFIG})
     
-    # 设置GPU
+  
     os.environ["CUDA_VISIBLE_DEVICES"] = CONFIG['gpu_id']
     
-    print("🚀 Starting vLLM Evaluation...")
-    print(f"📱 Model: {CONFIG['model_name']}")
-    print(f"📁 Output: {CONFIG['output_dir']}")
-    print(f"🎯 Max tokens: {CONFIG['max_tokens']}")
-    print(f"🌡️ Temperature: {CONFIG['temperature']}")
-    print(f"📦 Batch size: {CONFIG['batch_size']}")
+    print("Starting vLLM Evaluation...")
+    print(f"Model: {CONFIG['model_name']}")
+    print(f"Output: {CONFIG['output_dir']}")
+    print(f"Max tokens: {CONFIG['max_tokens']}")
+    print(f"Temperature: {CONFIG['temperature']}")
+    print(f"Batch size: {CONFIG['batch_size']}")
     
-    # 获取候选模型
+    
     data_paths = [CONFIG['train_data_path']]
     if args.use_validation:
         data_paths.append(CONFIG['val_data_path'])
@@ -356,10 +354,10 @@ def main():
     if not os.path.exists(merged_path) or args.force_merge:
         merged_path, checkpoint = merge_lora_model(CONFIG['output_dir'], CONFIG['model_name'])
     else:
-        print(f"✅ Using existing merged model: {merged_path}")
+        print(f"Using existing merged model: {merged_path}")
         checkpoint = "existing"
     
-    # 初始化vLLM
+  
     llm = initialize_vllm(merged_path)
     
     try:
@@ -374,33 +372,31 @@ def main():
             val_results = evaluate_dataset(llm, val_data, "Validation", candidate_models)
     
     finally:
-        # 清理资源
         print("🧹 Cleaning up resources...")
         if llm:
             del llm
         cleanup_gpu_memory()
     
-    # 保存结果
+    # 保存
     timestamp = datetime.now().strftime("%m%d_%H%M")
     
-    print("💾 Saving results...")
-    # 备份并更新训练数据
+    print("Saving results...")
+   
     backup_train = CONFIG['train_data_path'].replace('.pkl', f'_backup_{timestamp}.pkl')
     shutil.copy(CONFIG['train_data_path'], backup_train)
     
     with open(CONFIG['train_data_path'], "wb") as f:
         pickle.dump(train_results['modified_data'], f)
-    print(f"✅ Updated {CONFIG['train_data_path']}")
+    print(f"Updated {CONFIG['train_data_path']}")
     
-    # 备份并更新验证数据（如果有）
+   
     if val_results:
         backup_val = CONFIG['val_data_path'].replace('.pkl', f'_backup_{timestamp}.pkl')
         shutil.copy(CONFIG['val_data_path'], backup_val)
         with open(CONFIG['val_data_path'], "wb") as f:
             pickle.dump(val_results['modified_data'], f)
-        print(f"✅ Updated {CONFIG['val_data_path']}")
-    
-    # 保存评估报告
+        print(f"Updated {CONFIG['val_data_path']}")
+
     report_path = os.path.join(CONFIG['output_dir'], f"evaluation_report_{timestamp}.txt")
     with open(report_path, "w") as f:
         f.write(f"vLLM EVALUATION REPORT\n")
@@ -423,18 +419,13 @@ def main():
     
     # 打印最终结果
     print("\n" + "="*60)
-    print("🎉 vLLM EVALUATION COMPLETED!")
+    print("vLLM EVALUATION COMPLETED!")
     print("="*60)
-    print(f"📊 Train Accuracy: {train_results['accuracy']:.2%}")
+    print(f"Train Accuracy: {train_results['accuracy']:.2%}")
     if val_results:
-        print(f"📊 Val Accuracy: {val_results['accuracy']:.2%}")
-        overfitting = train_results['accuracy'] - val_results['accuracy']
-        if overfitting > 0.05:
-            print(f"⚠️ Overfitting: {overfitting:+.2%}")
-        else:
-            print(f"✅ Overfitting: {overfitting:+.2%}")
-    print(f"🎯 Candidate Models: {len(candidate_models)}")
-    print(f"📄 Report saved: {report_path}")
+        print(f"Val Accuracy: {val_results['accuracy']:.2%}")
+    print(f"Candidate Models: {len(candidate_models)}")
+    print(f"Report saved: {report_path}")
     print("="*60)
 
 
@@ -442,12 +433,12 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n🛑 程序被用户中断")
+        print("\n程序被用户中断")
     except Exception as e:
-        print(f"\n❌ 程序执行出错: {e}")
+        print(f"\n程序执行出错: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        # 最终清理
+        
         cleanup_gpu_memory()
-        print("🧹 程序结束，已清理资源")
+        print("程序结束，已清理资源")

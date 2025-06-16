@@ -54,7 +54,7 @@ class PromptBuilder:
         return self._build_input_prompt(eval_name, user_prompt, tags)
 
     def _build_input_prompt(self, eval_name, user_prompt, tags=None):
-        """构造输入prompt的核心逻辑"""
+        """构造输入prompt"""
         truncated_prompt = user_prompt[:self.max_prompt_length]
         tag_str = ", ".join(tags) if tags else "N/A"
 
@@ -81,14 +81,14 @@ class PromptBuilder:
         import json
         import re
         
-        # 首先尝试解析JSON格式
+        
         try:
             # 查找JSON对象
             json_match = re.search(r'\{[^}]*"best_model"\s*:\s*"([^"]*)"[^}]*\}', raw_output, re.IGNORECASE)
             if json_match:
                 return json_match.group(1).strip()
             
-            # 尝试解析完整的JSON
+            
             json_start = raw_output.find('{')
             json_end = raw_output.rfind('}') + 1
             if json_start != -1 and json_end > json_start:
@@ -99,7 +99,7 @@ class PromptBuilder:
         except (json.JSONDecodeError, ValueError):
             pass
         
-        # 如果JSON解析失败，使用正则表达式查找best_model值
+        
         patterns = [
             r'"best_model"\s*:\s*"([^"]*)"',
             r"'best_model'\s*:\s*'([^']*)'",
@@ -111,20 +111,20 @@ class PromptBuilder:
             if match:
                 return match.group(1).strip().strip('"\'')
         
-        # 最后的fallback: 按行分割，查找第一个有效行
+        
         lines = raw_output.split('\n')
         for line in lines:
             line = line.strip()
             if not line or line.startswith(('{', '}', '"best_model"')):
                 continue
             
-            # 移除常见的无关前缀/后缀
+            
             prefixes_to_remove = ['The best model is:', 'Answer:', 'Model:', 'The model is:']
             for prefix in prefixes_to_remove:
                 if line.startswith(prefix):
                     line = line[len(prefix):].strip()
             
-            # 移除引号和其他标点
+           
             line = line.strip('"\'.,')
             
             if line:
@@ -133,7 +133,7 @@ class PromptBuilder:
         return ""
     
     def is_prediction_correct(self, prediction, expected):
-        """大小写不敏感的预测匹配"""
+        """大小写不敏感"""
         if not prediction or not expected:
             return False
         
@@ -144,8 +144,6 @@ class PromptBuilder:
         if pred_clean == exp_clean:
             return True
         
-        # 检查是否预测包含期望的模型名（处理路径差异）
-        # 例如：prediction="mistralai/mistral-7b-chat" expected="mistral-7b-chat"
         if exp_clean in pred_clean or pred_clean in exp_clean:
             return True
         
@@ -221,26 +219,26 @@ class ProductionPredictionCallback(TrainerCallback):
                 
                 for i, example in enumerate(self.eval_samples):
                     try:
-                        # 使用统一的prompt构造器
+                        
                         full_prompt = self.prompt_builder.build_inference_prompt(
                             eval_name=example['eval_name'],
                             user_prompt=example['prompt']
                         )
                         
-                        # Tokenize - 使用和训练时相同的长度
+                        
                         inputs = self.tokenizer(
                             full_prompt,
                             return_tensors="pt",
                             truncation=True,
-                            max_length=512,  # 和训练时一致
+                            max_length=1800,  
                             padding=False
                         )
                         
-                        # 移动到模型设备
+                        
                         device = next(model.parameters()).device
                         inputs = {k: v.to(device) for k, v in inputs.items()}
                         
-                        # 生成
+                        
                         with torch.no_grad():
                             outputs = model.generate(
                                 **inputs,
@@ -251,26 +249,26 @@ class ProductionPredictionCallback(TrainerCallback):
                                 use_cache=False
                             )
                         
-                        # 解码
+                        
                         input_length = inputs["input_ids"].shape[1]
                         generated = outputs[0][input_length:]
                         raw_output = self.tokenizer.decode(generated, skip_special_tokens=True).strip()
                         
-                        # 使用统一的预测提取逻辑
+                      
                         prediction = self.prompt_builder.extract_prediction(raw_output)
                         expected = example.get('oracle_model_to_route_to', 'N/A')
                         
-                        # 使用统一的匹配逻辑
+                        
                         is_match = self.prompt_builder.is_prediction_correct(prediction, expected)
                         
                         if is_match:
                             correct += 1
                         
-                        print(f"🧾 Sample {i+1}: {example['eval_name']}")
-                        print(f"📤 Raw Output: '{raw_output}'")
-                        print(f"🔍 Extracted Prediction: '{prediction}'")
-                        print(f"🎯 Expected: '{expected}'")
-                        print(f"✅ Match: {is_match}\n")
+                        print(f"Sample {i+1}: {example['eval_name']}")
+                        print(f"Raw Output: '{raw_output}'")
+                        print(f"Extracted Prediction: '{prediction}'")
+                        print(f"Expected: '{expected}'")
+                        print(f"Match: {is_match}\n")
                         
                         writer.writerow([
                             round(state.epoch, 2),
@@ -283,7 +281,7 @@ class ProductionPredictionCallback(TrainerCallback):
                         ])
                         
                     except Exception as e:
-                        print(f"❌ Error in sample {i+1}: {str(e)}")
+                        print(f"Error in sample {i+1}: {str(e)}")
                         writer.writerow([
                             round(state.epoch, 2),
                             i,
@@ -296,10 +294,10 @@ class ProductionPredictionCallback(TrainerCallback):
                         continue
             
             accuracy = correct / total if total > 0 else 0
-            print(f"📊 Epoch {round(state.epoch, 2)} Accuracy: {accuracy:.1%} ({correct}/{total})")
+            print(f"Epoch {round(state.epoch, 2)} Accuracy: {accuracy:.1%} ({correct}/{total})")
                         
         except Exception as e:
-            print(f"❌ Error in prediction callback: {str(e)}")
+            print(f"Error in prediction callback: {str(e)}")
         finally:
             model.train()
 
@@ -317,16 +315,16 @@ def parse_args():
     
     # Training params
     parser.add_argument('--batch_size', type=int, default=4, help="Batch size per device")
-    parser.add_argument('--epochs', type=int, default=2, help="Number of epochs")
+    parser.add_argument('--epochs', type=int, default=10, help="Number of epochs")
     parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
-    parser.add_argument('--max_len', type=int, default=1024, help="Max sequence length")
+    parser.add_argument('--max_len', type=int, default=2048, help="Max sequence length")
     
     # Data size (for testing vs production)
     parser.add_argument('--train_samples', type=int, default=-1, help="Number of train samples (-1 for all)")
-    parser.add_argument('--val_samples', type=int, default=50, help="Number of validation samples")
+    parser.add_argument('--val_samples', type=int, default=100, help="Number of validation samples")
     
     # Multi-GPU settings
-    parser.add_argument('--gpu_ids', default='0,1,2,3', help="GPU IDs to use")
+    parser.add_argument('--gpu_ids', default='0,1', help="GPU IDs to use")
     
     # Validation and early stopping
     parser.add_argument('--use_validation', action='store_true', default=True)
@@ -342,7 +340,7 @@ def parse_args():
     return parser.parse_args()
 
 def setup_multi_gpu(gpu_ids_str):
-    """设置多GPU环境"""
+    """多GPU环境"""
     if gpu_ids_str and ',' in gpu_ids_str:
         gpu_ids = [int(x.strip()) for x in gpu_ids_str.split(',')]
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids_str
@@ -357,56 +355,55 @@ def setup_multi_gpu(gpu_ids_str):
 def main():
     args = parse_args()
     
-    # 设置GPU
+   
     num_gpus = setup_multi_gpu(args.gpu_ids)
     
-    # 设置随机种子
     torch.manual_seed(42)
     
-    print(f"🚀 Starting Production Training")
-    print(f"   Model: {args.model_name}")
-    print(f"   Output: {args.output_dir}")
-    print(f"   GPUs: {num_gpus}")
-    print(f"   Batch size per GPU: {args.batch_size}")
-    print(f"   Total effective batch size: {args.batch_size * num_gpus}")
-    print(f"   Learning rate: {args.lr}")
-    print(f"   Max epochs: {args.epochs}")
-    print(f"   Early stopping patience: {args.early_stopping_patience}")
+    print(f"Starting Production Training")
+    print(f" Model: {args.model_name}")
+    print(f" Output: {args.output_dir}")
+    print(f" GPUs: {num_gpus}")
+    print(f" Batch size per GPU: {args.batch_size}")
+    print(f" Total effective batch size: {args.batch_size * num_gpus}")
+    print(f" Learning rate: {args.lr}")
+    print(f" Max epochs: {args.epochs}")
+    print(f" Early stopping patience: {args.early_stopping_patience}")
     
     # 初始化tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, use_fast=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     
-    print(f"🔧 Tokenizer: vocab_size={len(tokenizer)}, pad_token_id={tokenizer.pad_token_id}")
+    print(f"Tokenizer: vocab_size={len(tokenizer)}, pad_token_id={tokenizer.pad_token_id}")
 
     # 加载数据
-    print("📊 Loading data...")
+    print("Loading data...")
     train_data = load_dataset(args.train_data_path)
     if args.train_samples > 0:
         train_data = train_data[:args.train_samples]
-        print(f"   Using {len(train_data)} training samples")
+        print(f" Using {len(train_data)} training samples")
     else:
-        print(f"   Using all {len(train_data)} training samples")
+        print(f" Using all {len(train_data)} training samples")
     
     val_data = []
     if args.use_validation:
         val_data = load_dataset(args.val_data_path)[:args.val_samples]
         print(f"   Using {len(val_data)} validation samples")
     
-    # 提取候选模型列表
+   
     CANDIDATE_MODELS = sorted(list(set(ex['oracle_model_to_route_to'] for ex in train_data + val_data)))
     print(f"   Found {len(CANDIDATE_MODELS)} candidate models")
     
-    # 创建统一的prompt构造器
+    
     prompt_builder = PromptBuilder(
         candidate_models=CANDIDATE_MODELS,
         max_prompt_length=args.max_prompt_length
     )
-    print(f"✅ Prompt builder initialized with {len(CANDIDATE_MODELS)} models")
+    print(f"Prompt builder initialized with {len(CANDIDATE_MODELS)} models")
 
     def preprocess_for_training(example):
-        """生产级预处理函数 - 使用统一的prompt构造器"""
+        
         try:
             # 使用统一的prompt构造逻辑
             full_prompt, target = prompt_builder.build_training_prompt(example)
@@ -461,8 +458,8 @@ def main():
             print(f"⚠️ Warning: Failed to preprocess example: {str(e)}")
             return None
 
-    # 预处理数据
-    print("🔄 Preprocessing data...")
+
+    print("Preprocessing data...")
     train_processed = [preprocess_for_training(ex) for ex in train_data]
     train_processed = [x for x in train_processed if x is not None]
     train_dataset = Dataset.from_list(train_processed)
@@ -474,10 +471,10 @@ def main():
         val_processed = [x for x in val_processed if x is not None]
         val_dataset = Dataset.from_list(val_processed)
     
-    print(f"✅ Processed {len(train_processed)} training, {len(val_processed)} validation samples")
+    print(f"Processed {len(train_processed)} training, {len(val_processed)} validation samples")
 
     # 加载模型
-    print("🔧 Loading model...")
+    print("Loading model...")
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name,
         device_map="auto",
@@ -485,17 +482,17 @@ def main():
         attn_implementation="eager"
     )
 
-    # 一行代码解决vocab_size问题
+
     model_vocab_size = getattr(model.config, 'vocab_size', model.get_input_embeddings().weight.shape[0])
     tokenizer_vocab_size = len(tokenizer)
 
-    print(f"🔧 Model vocab: {model_vocab_size}, Tokenizer vocab: {tokenizer_vocab_size}")
+    print(f"Model vocab: {model_vocab_size}, Tokenizer vocab: {tokenizer_vocab_size}")
 
     if tokenizer_vocab_size != model_vocab_size:
         model.resize_token_embeddings(tokenizer_vocab_size)
-        print(f"🔧 Resized embeddings: {model_vocab_size} → {tokenizer_vocab_size}")
+        print(f"Resized embeddings: {model_vocab_size} → {tokenizer_vocab_size}")
     
-    # 禁用缓存
+   
     model.config.use_cache = False
     if hasattr(model, 'generation_config'):
         model.generation_config.use_cache = False
@@ -508,7 +505,7 @@ def main():
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=0.1,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]  # 更多模块用于生产
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]  
     )
     model = get_peft_model(model, peft_config)
     
@@ -517,9 +514,9 @@ def main():
     total_params = sum(p.numel() for p in model.parameters())
     print(f"🎯 Trainable: {trainable_params:,} / {total_params:,} ({trainable_params/total_params*100:.2f}%)")
 
-    # 生产级训练参数
+ 
     training_args = TrainingArguments(
-        # 基本设置
+        
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=4,
@@ -539,7 +536,7 @@ def main():
         metric_for_best_model="eval_loss",
         greater_is_better=False,
         
-        # 性能优化
+        
         fp16=True,
         dataloader_num_workers=4 if num_gpus > 1 else 2,
         dataloader_pin_memory=True,
@@ -561,7 +558,7 @@ def main():
         label_names=["labels"]
     )
 
-    # 准备回调
+   
     callbacks = [
         LossLoggingCallback(os.path.join(args.output_dir, "training_loss.csv"))
     ]
@@ -571,9 +568,9 @@ def main():
         callbacks.append(EarlyStoppingCallback(
             early_stopping_patience=args.early_stopping_patience
         ))
-        print(f"✅ Early stopping enabled with patience {args.early_stopping_patience}")
+        print(f"Early stopping enabled with patience {args.early_stopping_patience}")
     
-    # 添加预测监控 - 使用统一的prompt构造器
+
     if val_data:
         callbacks.append(ProductionPredictionCallback(
             tokenizer=tokenizer,
@@ -583,7 +580,7 @@ def main():
             max_samples=5
         ))
 
-    # 创建trainer
+
     trainer = Trainer(
         model=model,
         processing_class=tokenizer,
@@ -600,7 +597,7 @@ def main():
     )
 
     # 开始训练
-    print("\n🚀 Starting training...")
+    print("\nStarting training...")
     try:
         trainer.train()
         trainer.save_model()
@@ -615,18 +612,18 @@ def main():
         prompt_config_path = os.path.join(args.output_dir, "prompt_config.json")
         with open(prompt_config_path, 'w') as f:
             json.dump(prompt_config, f, indent=2)
-        print(f"📁 Prompt config saved to {prompt_config_path}")
+        print(f"Prompt config saved to {prompt_config_path}")
         
-        print("✅ Training completed successfully!")
+        print("Training completed successfully!")
         
         # 保存训练配置
         config_path = os.path.join(args.output_dir, "training_config.json")
         with open(config_path, 'w') as f:
             json.dump(vars(args), f, indent=2)
-        print(f"📁 Training config saved to {config_path}")
+        print(f"Training config saved to {config_path}")
         
     except Exception as e:
-        print(f"❌ Training failed: {str(e)}")
+        print(f"Training failed: {str(e)}")
         import traceback
         traceback.print_exc()
 
