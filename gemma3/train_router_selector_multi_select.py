@@ -302,7 +302,7 @@ class ProductionPredictionCallback(TrainerCallback):
                         print(f"Raw Output: '{raw_output}'")
                         print(f"Extracted Prediction: '{prediction}'")
                         print(f"Expected: '{expected}'")
-                        print(f"✅ Match: {is_match}\n")
+                        print(f"Match: {is_match}\n")
                         
                         writer.writerow([
                             round(state.epoch, 2),
