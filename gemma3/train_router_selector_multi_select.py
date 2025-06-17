@@ -262,7 +262,7 @@ class ProductionPredictionCallback(TrainerCallback):
                             full_prompt,
                             return_tensors="pt",
                             truncation=True,
-                            max_length=1800, 
+                            max_length=args.max_len, 
                             padding=False
                         )
                         
@@ -351,11 +351,11 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=4, help="Batch size per device")
     parser.add_argument('--epochs', type=int, default=10, help="Number of epochs")
     parser.add_argument('--lr', type=float, default=1e-4, help="Learning rate")
-    parser.add_argument('--max_len', type=int, default=1800, help="Max sequence length")
+    parser.add_argument('--max_len', type=int, default=2048, help="Max sequence length")
     
     # Data size (for testing vs production)
     parser.add_argument('--train_samples', type=int, default=-1, help="Number of train samples (-1 for all)")
-    parser.add_argument('--val_samples', type=int, default=100, help="Number of validation samples")
+    parser.add_argument('--val_samples', type=int, default=-1, help="Number of validation samples")
     
     # Multi-GPU settings
     parser.add_argument('--gpu_ids', default='2,3', help="GPU IDs to use")
