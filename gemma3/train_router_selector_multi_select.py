@@ -158,11 +158,10 @@ class PromptBuilder:
     
     def is_prediction_correct(self, predictions, expected_models):
        
-        # 特殊情况：ground truth为空时，期望预测"no_model_correct"
+        # ground truth为空时，期望预测"no_model_correct"
         if not expected_models:
             return predictions == ["no_model_correct"]
         
-        # 特殊情况：如果预测了"no_model_correct"但有期望模型
         if "no_model_correct" in predictions:
             return False
     
@@ -263,7 +262,7 @@ class ProductionPredictionCallback(TrainerCallback):
                             full_prompt,
                             return_tensors="pt",
                             truncation=True,
-                            max_length=1800,  # 和训练时一致
+                            max_length=1800, 
                             padding=False
                         )
                         
@@ -310,7 +309,7 @@ class ProductionPredictionCallback(TrainerCallback):
                             i,
                             example["eval_name"],
                             prediction,
-                            raw_output.replace('\n', '\\n'),  # 转义换行符以便CSV保存
+                            raw_output.replace('\n', '\\n'),  
                             expected,
                             is_match
                         ])
@@ -337,7 +336,7 @@ class ProductionPredictionCallback(TrainerCallback):
             model.train()
 
 # ---------------------------
-# Main training function
+# Main
 # ---------------------------
 def parse_args():
     parser = argparse.ArgumentParser(description="Router Model Training")
@@ -543,7 +542,7 @@ def main():
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
         lora_dropout=0.1,
-        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]  # 更多模块用于生产
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj"]  
     )
     model = get_peft_model(model, peft_config)
     
