@@ -497,7 +497,7 @@ def main():
             }
             
         except Exception as e:
-            print(f"⚠️ Warning: Failed to preprocess example: {str(e)}")
+            print(f"Failed to preprocess example: {str(e)}")
             return None
 
     print("Preprocessing data...")
@@ -525,11 +525,11 @@ def main():
     model_vocab_size = getattr(model.config, 'vocab_size', model.get_input_embeddings().weight.shape[0])
     tokenizer_vocab_size = len(tokenizer)
 
-    print(f"🔧 Model vocab: {model_vocab_size}, Tokenizer vocab: {tokenizer_vocab_size}")
+    print(f"Model vocab: {model_vocab_size}, Tokenizer vocab: {tokenizer_vocab_size}")
 
     if tokenizer_vocab_size != model_vocab_size:
         model.resize_token_embeddings(tokenizer_vocab_size)
-        print(f"🔧 Resized embeddings: {model_vocab_size} → {tokenizer_vocab_size}")
+        print(f"Resized embeddings: {model_vocab_size} → {tokenizer_vocab_size}")
     
 
     model.config.use_cache = False
