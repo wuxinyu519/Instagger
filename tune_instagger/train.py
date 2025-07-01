@@ -8,7 +8,8 @@ from transformers import (
     AutoModelForCausalLM, 
     TrainingArguments, 
     Trainer,
-    DataCollatorForLanguageModeling
+    DataCollatorForLanguageModeling,
+    BitsAndBytesConfig
 )
 from datasets import Dataset
 import argparse
@@ -22,8 +23,8 @@ class InsTaggerTrainer:
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
-            # device_map="auto",
-            trust_remote_code=True
+            device_map="auto",
+            trust_remote_code=True,
         )
         
         
@@ -35,21 +36,25 @@ class InsTaggerTrainer:
         with open(data_path, 'rb') as f:
             data = pickle.load(f)
         
-  
         if limit:
             data = data[:limit]
         
         training_data = []
-        template = "You are a helpful assistant. Please identify tags of user intentions in the following user query. Query: {query} Assistant: {tags}"
+        # 添加EOS 
+        template = "You are a helpful assistant. Please identify tags of user intentions in the following user query. Query: {query} Assistant: {tags}" + self.tokenizer.eos_token
         
         for item in data:
             if isinstance(item, dict):
-                
                 prompt = item.get('prompt')
                 tags = item.get('tags')
                 
                 if prompt and tags:
-                    tags_str = json.dumps(tags, ensure_ascii=False) if isinstance(tags, list) else str(tags)
+                    
+                    if isinstance(tags, list):
+                        tags_str = ', '.join(str(tag).strip() for tag in tags[:5] if str(tag).strip())
+                    else:
+                        tags_str = str(tags)
+                    
                     formatted_text = template.format(query=prompt, tags=tags_str)
                     training_data.append({"text": formatted_text})
         
@@ -109,7 +114,7 @@ class InsTaggerTrainer:
             report_to="tensorboard",  # 使用tensorboard记录
             logging_first_step=True,  
             save_strategy="steps",
-            evaluation_strategy="no",
+            eval_strategy="no",
             dataloader_drop_last=False,
             load_best_model_at_end=False,
         )
