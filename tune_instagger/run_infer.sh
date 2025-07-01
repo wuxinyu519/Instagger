@@ -8,14 +8,14 @@
 
 cd $PBS_O_WORKDIR
 
-# 加载环境
+# 环境
 module load cuda12.6/toolkit
 eval "$(conda shell.bash hook)"
 conda activate nec
 
 
 
-# 设置GPU
+# GPU
 export CUDA_VISIBLE_DEVICES=6,7
 export TOKENIZERS_PARALLELISM=false
 

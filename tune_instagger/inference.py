@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-增量保存版本的InsTagger推理脚本 - 避免数据丢失
-"""
-
 import os
 import pickle
 import glob
@@ -67,7 +63,7 @@ def extract_tags(tags_text):
 
 
 def append_results_to_file(output_file, new_results):
-    """增量追加结果到文件"""
+    """追加结果到文件"""
     if not new_results:
         return 0
     
@@ -139,7 +135,7 @@ def run_inference_vllm(model_path: str, data: list, output_file: str,
             print(f"Error during vLLM batch generation: {e}")
             responses = [None] * len(batch)
 
-        # 处理这个批次的结果
+        # 处理批次的结果
         current_batch_results = []
         for i, item in enumerate(batch):
             idx = start + i
@@ -147,7 +143,7 @@ def run_inference_vllm(model_path: str, data: list, output_file: str,
             try:
                 if responses[i] is not None:
                     raw_text = responses[i].outputs[0].text.strip()
-                    # 去掉前缀 prompt 部分（如果有）
+                    # 去掉前缀 prompt 部分
                     prefix = input_texts[i]
                     if raw_text.startswith(prefix):
                         generated_part = raw_text[len(prefix):].strip()
