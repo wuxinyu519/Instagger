@@ -13,6 +13,7 @@ class TagRouterScorer:
         self.total_tag_frequency = 0  # 所有标签频次的总和
         
     def build_tag_score_mapping(self, score_dataset, prediction_data):
+        """只在训练阶段调用，构建 tag-score 映射表"""
         
         if isinstance(score_dataset, pd.DataFrame):
             score_df = score_dataset
@@ -22,7 +23,6 @@ class TagRouterScorer:
         # 获取模型列
         model_columns = list(score_df.columns)[3:14]
         
-   
         all_tags = []
         sample_tags = {}
         
@@ -34,29 +34,25 @@ class TagRouterScorer:
             sample_tags[sample_id] = tags
             all_tags.extend(tags)
         
-        # 计算标签频次 (countt)
+        # 计算标签频次
         self.tag_frequencies = Counter(all_tags)
         self.total_tag_frequency = sum(self.tag_frequencies.values())
         
         print(f"Total tags: {len(self.tag_frequencies)}, Total frequency: {self.total_tag_frequency}")
         
-   
         tag_model_comparisons = defaultdict(lambda: defaultdict(lambda: {'win': 0, 'tie': 0, 'loss': 0}))
         
-   
         score_lookup = {}
         for idx, score_row in score_df.iterrows():
             sample_id = score_row['sample_id']
             score_lookup[sample_id] = score_row
         
- 
         for sample_id, tags in sample_tags.items():
             if sample_id not in score_lookup:
                 continue
                 
             score_row = score_lookup[sample_id]
             
-      
             model_scores = {}
             for model in model_columns:
                 try:
@@ -76,26 +72,19 @@ class TagRouterScorer:
             # 为每个标签，计算每个模型相对于最优表现的比较结果
             for tag in tags:
                 for model, score in model_scores.items():
-                
                     if score == max_score and score > 0:
-                      
                         tag_model_comparisons[tag][model]['win'] += 1
                     elif score == 0:
-                      
                         tag_model_comparisons[tag][model]['loss'] += 1
                     else:
-                    
                         tag_model_comparisons[tag][model]['tie'] += 1
         
         # 计算TagRouter的tag-score映射
-        #  score(Mi, t) = wt · Σ count_t,Mi(r) · sr
-        
         s_win = 1.0
         s_tie = 0.15  
         s_loss = -1.0
         
         for tag in self.tag_frequencies:
-            # wt = (1 - exp(-countt)) / Σcountt')
             tag_freq = self.tag_frequencies[tag]
             w_t = (1 - math.exp(-tag_freq)) / self.total_tag_frequency
             
@@ -103,22 +92,19 @@ class TagRouterScorer:
                 if model in tag_model_comparisons[tag]:
                     comparisons = tag_model_comparisons[tag][model]
                     
-                    
                     base_score = (comparisons['win'] * s_win + 
                                  comparisons['tie'] * s_tie + 
                                  comparisons['loss'] * s_loss)
-                    
                     
                     final_score = w_t * base_score
                     
                     self.tag_score_mapping[(model, tag)] = final_score
                 else:
-                  
                     self.tag_score_mapping[(model, tag)] = 0.0
         
         print(f"Built tag-score mapping with {len(self.tag_score_mapping)} entries")
         
-        
+        # 显示样例映射
         print("Sample tag-score mappings:")
         sorted_mappings = sorted(self.tag_score_mapping.items(), key=lambda x: abs(x[1]), reverse=True)
         for (model, tag), score in sorted_mappings[:5]:
@@ -127,6 +113,7 @@ class TagRouterScorer:
     
     def select_best_model_by_tags(self, tags, available_models):
         """
+        使用已构建的 tag-score 映射进行模型选择
         M*(q) = argmax_M∈M Σt∈T(q) score(M, t)
         """
         if isinstance(tags, str):
@@ -148,8 +135,10 @@ class TagRouterScorer:
         else:
             return available_models[0] if available_models else None
 
-def calculate_scores(prediction_file, score_dataset_file):
-
+def calculate_scores_with_mapping(prediction_file, score_dataset_file, tag_scorer=None):
+    """
+    使用已有的 tag_scorer 或构建新的来计算分数
+    """
     with open(prediction_file, 'rb') as f:
         prediction_data = pickle.load(f)
 
@@ -163,25 +152,25 @@ def calculate_scores(prediction_file, score_dataset_file):
 
     print(f"Processing {len(prediction_data)} predictions...")
 
-
-    tag_scorer = TagRouterScorer()
-    tag_scorer.build_tag_score_mapping(score_df, prediction_data)
+    # 如果没有提供 tag_scorer，说明是训练阶段，需要构建映射
+    if tag_scorer is None:
+        tag_scorer = TagRouterScorer()
+        tag_scorer.build_tag_score_mapping(score_df, prediction_data)
+        is_training = True
+    else:
+        is_training = False
 
     total_tagrouter_score = 0.0
     total_maximum_score = 0.0
-
 
     model_columns = list(score_df.columns)[3:14]
 
     for sample in prediction_data:
         sample_id = sample.get('sample_id')
-
-    
         tags = sample.get('tags', [])
         if isinstance(tags, str):
             tags = [tags]
 
-    
         matching_rows = score_df[score_df['sample_id'] == sample_id]
         if matching_rows.empty:
             continue
@@ -214,14 +203,13 @@ def calculate_scores(prediction_file, score_dataset_file):
         
         total_tagrouter_score += tagrouter_score
 
-
     tagrouter_ratio = total_tagrouter_score / total_maximum_score if total_maximum_score else 0.0
 
     return {
         'total_maximum_score': round(total_maximum_score, 2),
         'total_tagrouter_score': round(total_tagrouter_score, 2),
         'tagrouter_ratio': round(tagrouter_ratio, 4)
-    }
+    }, tag_scorer
 
 def main():
     model_name = "gemma-3-1b-it_multiclass"
@@ -233,11 +221,11 @@ def main():
     print("=== TagRouter Strict Implementation ===")
     print("Computing TagRouter comparison using exact paper formulas...")
     
-    print("\nTRAINING SET:")
-    train_results = calculate_scores(train_file, score_file)
+    print("\nTRAINING SET")
+    train_results, tag_scorer = calculate_scores_with_mapping(train_file, score_file, tag_scorer=None)
     
-    print("\nVALIDATION SET:")
-    val_results = calculate_scores(val_file, score_file)
+    print("\nVALIDATION SET")
+    val_results, _ = calculate_scores_with_mapping(val_file, score_file, tag_scorer=tag_scorer)
 
     print(f"\n=== FINAL RESULTS ===")
     print(f"TRAIN:")
@@ -250,13 +238,12 @@ def main():
     print(f"  TagRouter Score: {val_results['total_tagrouter_score']}")
     print(f"  TagRouter Ratio: {val_results['tagrouter_ratio']:.2%}")
     
-
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     with open(save_path, 'w') as f:
         json.dump({
             "train": train_results,
             "val": val_results,
-            "note": "Strict TagRouter implementation following paper formulas exactly"
+            "note": "Strict TagRouter implementation: trained on train set, evaluated on val set"
         }, f, indent=2)
 
     print(f"\nResults saved to {save_path}")
