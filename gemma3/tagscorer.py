@@ -156,9 +156,7 @@ def calculate_scores_with_mapping(prediction_file, score_dataset_file, tag_score
     if tag_scorer is None:
         tag_scorer = TagRouterScorer()
         tag_scorer.build_tag_score_mapping(score_df, prediction_data)
-        is_training = True
-    else:
-        is_training = False
+    
 
     total_tagrouter_score = 0.0
     total_maximum_score = 0.0
