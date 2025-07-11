@@ -152,7 +152,7 @@ def calculate_scores_with_mapping(prediction_file, score_dataset_file, tag_score
 
     print(f"Processing {len(prediction_data)} predictions...")
 
-    # 如果没有提供 tag_scorer，说明是训练阶段，需要构建映射
+    # if tag_scorer=none，说明是训练阶段，需要构建tag score 表
     if tag_scorer is None:
         tag_scorer = TagRouterScorer()
         tag_scorer.build_tag_score_mapping(score_df, prediction_data)
@@ -243,7 +243,7 @@ def main():
         json.dump({
             "train": train_results,
             "val": val_results,
-            "note": "Strict TagRouter implementation: trained on train set, evaluated on val set"
+            "note": "trained on train set, evaluated on val set"
         }, f, indent=2)
 
     print(f"\nResults saved to {save_path}")
