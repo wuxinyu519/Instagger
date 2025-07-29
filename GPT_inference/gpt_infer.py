@@ -4,67 +4,49 @@ import pickle
 import json
 import argparse
 import time
+import re
 from openai import OpenAI
 
 def create_prompt(instruction):
     """创建标签提取的提示"""
-    return f"""You are a tagging system that provides useful tags for instruction intentions to distinguish instructions for a helpful AI assistant. Below is an privacy-related instruction: [begin] {instruction} [end] Please provide coarse-grained tags, such as "Spelling and Grammar Check" and "Cosplay", to identify main intentions of above instruction. Your answer should be a list including titles of tags and a brief explanation of each tag. Your response have to strictly follow this JSON format: [{{"tag": str, "explanation": str}}]. Please response in English."""
+    return f"""You are a tagging system that provides useful tags for instruction intentions to distinguish instructions for a helpful AI assistant. Below is an instruction: [begin] {instruction} [end] Please provide coarse-grained tags, such as "Spelling and Grammar Check" and "Cosplay", to identify main intentions of above instruction. Your answer should be a list including titles of tags and a brief explanation of each tag. Your response have to strictly follow this JSON format: [{{"tag": str, "explanation": str}}]. Please response in English."""
 
 def clean_json_response(response):
-    """智能清理GPT响应，提取JSON内容"""
-    import re
+    """提取JSON内容"""
     
     response = response.strip()
     
-    # 方法1: 使用正则表达式提取JSON数组或对象
-    # 匹配 [...] 或 {...}
-    json_pattern = r'(\[.*?\]|\{.*?\})'
-    matches = re.findall(json_pattern, response, re.DOTALL)
+    # 🔥 方法1: 直接JSON解析
+    try:
+        json_pattern = r'(\[.*?\]|\{.*?\})'
+        matches = re.findall(json_pattern, response, re.DOTALL)
+        if matches:
+            longest_match = max(matches, key=len)
+            # 验证是否为有效JSON
+            json.loads(longest_match)
+            return longest_match.strip()
+    except:
+        pass
     
-    if matches:
-        # 返回最长的匹配（通常是完整的JSON）
-        longest_match = max(matches, key=len)
-        return longest_match.strip()
-    
-    # 方法2: 移除常见的非JSON前缀和后缀
-    # 移除可能的markdown代码块标记
-    lines = response.split('\n')
-    start_idx = 0
-    end_idx = len(lines)
-    
-    # 找到第一个包含 [ 或 { 的行
-    for i, line in enumerate(lines):
-        if '[' in line or '{' in line:
-            start_idx = i
-            break
-    
-    # 从后往前找到最后一个包含 ] 或 } 的行
-    for i in range(len(lines) - 1, -1, -1):
-        if ']' in lines[i] or '}' in lines[i]:
-            end_idx = i + 1
-            break
-    
-    # 重新组合有效的JSON部分
-    cleaned_lines = lines[start_idx:end_idx]
-    cleaned_response = '\n'.join(cleaned_lines).strip()
-    
-    # 方法3: 如果上述方法都失败，尝试简单的字符串清理
-    if not cleaned_response:
-        # 移除常见的非JSON字符
-        prefixes_to_remove = ['```json', '```', 'json', 'JSON:', 'Response:', 'Here is the JSON:']
-        suffixes_to_remove = ['```', '```json']
+    # 方法2: 正则提取（备用方案）
+    try:
+        tag_pattern = r'"tag":\s*"([^"]*)"'
+        explanation_pattern = r'"explanation":\s*"([^"]*(?:[^"\\]|\\.)*)"\s*[,}]'
         
-        for prefix in prefixes_to_remove:
-            if response.lower().startswith(prefix.lower()):
-                response = response[len(prefix):].strip()
+        tags = re.findall(tag_pattern, response)
+        explanations = re.findall(explanation_pattern, response)
         
-        for suffix in suffixes_to_remove:
-            if response.lower().endswith(suffix.lower()):
-                response = response[:-len(suffix)].strip()
-        
-        cleaned_response = response
+        if tags and explanations and len(tags) == len(explanations):
+            # 重构为JSON字符串格式
+            json_items = []
+            for i in range(len(tags)):
+                json_items.append(f'{{"tag": "{tags[i]}", "explanation": "{explanations[i]}"}}')
+            return '[' + ', '.join(json_items) + ']'
+    except:
+        pass
     
-    return cleaned_response
+    # 如果都失败，返回原始响应
+    return response
 
 def get_tags(client, instruction, model_name="gpt-3.5-turbo", max_tokens=512, temperature=0.6, top_p=0.9):
     """获取单个指令的标签"""
@@ -101,15 +83,16 @@ def get_tags(client, instruction, model_name="gpt-3.5-turbo", max_tokens=512, te
         try:
             tags = json.loads(cleaned_result)
             print(f"✅ JSON解析成功: {tags}")
-            return tags, True
+            return result, tags, True  # 🔥 返回原始响应
         except json.JSONDecodeError as e:
             print(f"❌ JSON解析失败: {e}")
             print(f"解析失败的内容: '{cleaned_result}'")
-            return [{"tag": "Error", "explanation": "Failed to parse JSON"}], False
+            return result, [{"tag": "Error", "explanation": "Failed to parse JSON"}], False
             
     except Exception as e:
         print(f"API调用失败: {e}")
-        return [{"tag": "Error", "explanation": str(e)}], False
+        error_msg = str(e)
+        return error_msg, [{"tag": "Error", "explanation": error_msg}], False
 
 def load_data(data_path, limit=None):
     """加载数据并提取提示"""
@@ -219,7 +202,7 @@ def main():
     for i, prompt in enumerate(prompts):
         print(f"Processing {i+1}/{len(prompts)}")
         
-        tags, success = get_tags(
+        raw_response, tags, success = get_tags(  # 🔥 接收原始响应
             client, 
             prompt, 
             args.model_name, 
@@ -234,7 +217,7 @@ def main():
         result = {
             "index": i,
             "prompt": prompt,
-            "raw_response": json.dumps(tags),
+            "raw_response": raw_response,  # 🔥 保存完整的GPT原始响应
             "parsed_tags": tags,
             "success": success
         }
