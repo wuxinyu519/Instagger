@@ -7,8 +7,8 @@ This job script runs full evaluations of a fine-tuned **Gemma 3 4B** model on tw
 
 ## 🛠️ Job Configuration (PBS)
 
-- **Output Log**: `full_eval_helmet.out`
-- **Error Log**: `full_eval_helmet.err`
+- **Output Log**: `full_eval_{dataset_name}.out`
+- **Error Log**: `full_eval_{dataset_name}.err`
 - **Runtime Limit**: 24 hours
 - **Node**: `gpu008`
 - **Queue**: `poderoso`
