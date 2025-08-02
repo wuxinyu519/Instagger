@@ -1,6 +1,6 @@
 #!/bin/bash
-#PBS -o full_eval.out
-#PBS -e full_eval.err
+#PBS -o full_eval_infinitebench.out
+#PBS -e full_eval_infinitebench.err
 #PBS -l walltime=24:00:00
 #PBS -l nodes=1:gpu008
 #PBS -q poderoso
