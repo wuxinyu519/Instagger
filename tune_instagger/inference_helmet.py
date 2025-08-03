@@ -78,12 +78,12 @@ def get_dataset_config(file_path):
                 'description': 'MSMarco dataset (query + context)'
             }
         
-        # multi_lexsum数据集：使用question字段
+        # multi_lexsum数据集：使用sources字段
         elif 'multi_lexsum' in part_lower:
             return {
-                'input_field': 'question',
+                'input_field': 'sources',
                 'context_field': 'context',
-                'description': 'Multi-LexSum dataset (question + context)'
+                'description': 'Multi-LexSum dataset (context)'
             }
         
         # kilt数据集：使用question字段
@@ -495,7 +495,7 @@ def process_item(item, file_name, line_num, config):
     input_field = config['input_field']
     context_field = config['context_field']
     
-    # 按顺序查找
+    # 按顺序查找输入字段
     if isinstance(input_field, list):
         input_content = None
         for field in input_field:
@@ -512,7 +512,15 @@ def process_item(item, file_name, line_num, config):
             return None
         input_content = item[input_field]
     
-   
+    # 特殊处理 sources 字段（multi_lexsum 数据集）
+    if input_field == 'sources':
+        if isinstance(input_content, list):
+            # 如果是数组，合并所有源文档
+            input_content = '\n\n'.join(str(source) for source in input_content)
+        else:
+            input_content = str(input_content)
+    
+    # 获取上下文字段
     context_content = item.get(context_field, '')
     
     # 创建用于推理的实际输入
@@ -520,9 +528,6 @@ def process_item(item, file_name, line_num, config):
         item['inference_context'] = f"{input_content}\n\n{context_content}"
     else:
         item['inference_context'] = input_content
-    
-    # 记录使用的字段配置
-    item['_field_config'] = config['description']
     
     return item
 
