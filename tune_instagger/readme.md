@@ -34,27 +34,6 @@ bash scripts/download_dataset.sh
 
 ---
 
-## 🚀 Inference on HELMET
-
-### Option 1: Use PBS script
-```bash
-qsub run_infer_helmet.sh
-```
-
-### Option 2: Run directly
-```bash
-python inference_helmet.py \
-    --checkpoint_path ./experiments/google_gemma-3-4b-it_20250730_221314/final_model/ \
-    --data_dir ../HELMET/data/ \
-    --output_prefix results_HELMET \
-    --save_raw_text \
-    --batch_size 200 \
-    --tensor_parallel_size 2 \
-    --save_interval 500
-```
-
----
-
 ## 🚀 Inference on InfiniteBench
 
 ### Option 1: Use PBS script
