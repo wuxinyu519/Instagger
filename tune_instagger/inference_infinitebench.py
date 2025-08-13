@@ -31,7 +31,6 @@ def get_model_name_from_path(model_path: str) -> str:
 
 def truncate_context(context: str, tokenizer, max_tokens: int = 600) -> str:
     """
-    更高效地截断context，只编码必要部分，避免重复和全量encode。
     保留前300和后300 tokens，中间不重叠。
     """
     max_each = max_tokens // 2  # 默认各保留300个
@@ -177,7 +176,7 @@ def extract_tags_with_explanations(tags_text):
                                 "tag": str(item["tag"]).strip(),
                                 "explanation": str(item["explanation"]).strip()
                             })
-                    return valid_tags[:5]
+                    return valid_tags
             except json.JSONDecodeError:
                 pass
         
@@ -197,9 +196,9 @@ def extract_tags_with_explanations(tags_text):
                         })
                 except:
                     continue
-            return valid_tags[:5]
+            return valid_tags
         
-        # 回退方案：简单解析
+        
         return _fallback_parse(tags_text)
         
     except Exception as e:
@@ -207,7 +206,7 @@ def extract_tags_with_explanations(tags_text):
         return []
 
 def _fallback_parse(response: str):
-    """回退解析方法"""
+    """解析方法"""
     try:
         tags = []
         lines = response.split('\n')
@@ -239,7 +238,7 @@ def _fallback_parse(response: str):
         if current_tag and current_explanation:
             tags.append({"tag": current_tag, "explanation": current_explanation})
         
-        return tags[:5] if tags else [{"tag": "General", "explanation": "Unable to parse specific tags"}]
+        return tags if tags else [{"tag": "General", "explanation": "Unable to parse specific tags"}]
     except:
         return [{"tag": "Error", "explanation": "Failed to parse response"}]
 
@@ -306,8 +305,12 @@ def run_inference_vllm(model_path: str, data: list, output_file: str,
             inference_text = item.get('inference_context', item.get('context', ''))
             truncated_context = truncate_context(inference_text, tokenizer)
             
-            # 构建prompt
-            prompt_text = f"You are a helpful assistant. Please identify tags of user intentions in the following user query and provide an explanation for each tag. Please respond in the JSON format {{\"tag\": str, \"explanation\": str}}. Query: {truncated_context} Assistant:"
+
+   
+            # 构建prompt1
+            # prompt_text = f"You are a helpful assistant. Please identify tags of user intentions, in the following user query and provide an explanation for each tag. Please respond in the JSON format {{\"tag\": str, \"explanation\": str}}.Query: {truncated_context} Assistant:"
+            # 构建prompt2
+            prompt_text = f"You are a helpful assistant. For the user query below, generate tags in this order:1) Domain, 2) Task Type, 3) Difficulty, 4) Language, 5) Topics (can be multiple). Explain each tag briefly. Output must be JSON: {{\"tag\": str, \"explanation\": str}}. Query: {truncated_context} Assistant:"
             input_texts.append(prompt_text)
 
         eos_tokens = []
@@ -435,7 +438,7 @@ def load_single_json_file(json_file: str, num_samples: int = None):
                         print(f"Warning: JSON decode error at line {line_num} in {json_file}: {e}")
                         continue
             else:
-                # JSON格式：整个文件是一个JSON数组或对象
+           
                 try:
                     data = json.load(f)
                     if isinstance(data, list):
@@ -548,7 +551,7 @@ def process_single_file(model_path: str, json_file: str, output_dir: str, args):
         return output_file
         
     except Exception as e:
-        print(f"✗ Error processing {json_file}: {e}")
+        print(f"Error processing {json_file}: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -640,7 +643,7 @@ def main():
         for failed_file in failed_files:
             print(f"  - {failed_file}")
     
-    print(f"\n📂 All results saved in directory: {output_dir}")
+    print(f"\nAll results saved in directory: {output_dir}")
     print("✨ Processing completed!")
 
 if __name__ == "__main__":
