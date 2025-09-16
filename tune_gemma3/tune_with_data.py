@@ -21,7 +21,7 @@ from datetime import datetime
 import argparse
 import time
 import random
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 os.environ["PYTORCH_USE_CUDA_DSA"] = "1"
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
