@@ -2,6 +2,9 @@
 
 本项目用于提交 `run_tune_data.sh` 脚本到集群进行数据处理。
 
+## data link
+https://drive.google.com/file/d/12WFNNE0AfUAB32fRZUJXDjI9RK_ooFCW/view?usp=sharing
+
 ## 使用方法
 
 通过 `qsub` 命令提交任务：
